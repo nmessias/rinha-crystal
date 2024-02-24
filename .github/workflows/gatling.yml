@@ -1,0 +1,55 @@
+name: Run Gatling tests
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write      
+
+jobs:
+  run-gatling:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    name: Run Gatling
+    runs-on: ubuntu-20.04
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      
+      - name: Install Gatling
+        run: |
+          wget -O gatling.zip https://repo1.maven.org/maven2/io/gatling/highcharts/gatling-charts-highcharts-bundle/3.10.3/gatling-charts-highcharts-bundle-3.10.3-bundle.zip
+          unzip gatling.zip -d ~/
+          mv ~/gatling-charts-highcharts-bundle-3.10.3 ~/gatling
+      
+      - name: Clone rinha-de-backend repository
+        run: |
+          git clone https://github.com/zanfranceschi/rinha-de-backend-2024-q1.git tests
+
+      - name: Run app
+        run: docker compose up --build -d
+
+      - name: Run Gatling
+        run: cd tests/ && ./executar-teste-local.sh
+
+      - name: Rename test result directory
+        run: cd tests/load-test/user-files/results && mv ./* nmessias  
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'tests/load-test/user-files/results/nmessias'  
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
